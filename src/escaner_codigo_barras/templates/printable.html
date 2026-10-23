@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hoja de Códigos de Barras de Ejemplo para Pruebas - Symbol Scanner</title>
+  <style>
+    @page {
+      size: A4 portrait;
+      margin: 1cm;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+      padding: 2rem;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 2rem;
+      border-bottom: 2px solid #0f172a;
+      padding-bottom: 1rem;
+    }
+    .header h1 {
+      font-size: 1.5rem;
+      margin-bottom: 0.25rem;
+    }
+    .header p {
+      font-size: 0.9rem;
+      color: #475569;
+    }
+    .instructions {
+      background: #e2e8f0;
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      margin-bottom: 1.5rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px dashed #94a3b8;
+      border-radius: 8px;
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      page-break-inside: avoid;
+    }
+    .card-title {
+      font-weight: bold;
+      font-size: 1rem;
+      margin-bottom: 0.25rem;
+    }
+    .card-desc {
+      font-size: 0.8rem;
+      color: #64748b;
+      margin-bottom: 0.75rem;
+    }
+    .barcode-box {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100px;
+      margin-bottom: 0.5rem;
+    }
+    .barcode-box svg, .barcode-box img {
+      max-width: 100%;
+      height: auto;
+      max-height: 110px;
+    }
+    .code-text {
+      font-family: monospace;
+      font-size: 0.95rem;
+      font-weight: bold;
+      letter-spacing: 0.05em;
+    }
+    .badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      background: #0f172a;
+      color: #ffffff;
+      border-radius: 4px;
+      margin-top: 0.25rem;
+    }
+    .print-btn-bar {
+      margin-bottom: 1.5rem;
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+    }
+    .btn {
+      padding: 0.6rem 1.2rem;
+      font-size: 0.9rem;
+      font-weight: bold;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    @media print {
+      body {
+        background: #fff;
+        padding: 0;
+      }
+      .print-btn-bar, .instructions {
+        display: none !important;
+      }
+      .grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+      }
+      .card {
+        border: 1px solid #000;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="print-btn-bar">
+    <button class="btn" onclick="window.print()">🖨️ Imprimir Hoja de Pruebas (Ctrl+P)</button>
+    <button class="btn" style="background: #475569;" onclick="window.close()">Cerrar Pestaña</button>
+  </div>
+
+  <div class="header">
+    <h1>Hoja de Pruebas para Escáner de Código de Barras</h1>
+    <p>Dispositivo: Symbol Technologies USB (05e0:1200) • Formatos 1D y 2D</p>
+  </div>
+
+  <div class="instructions">
+    <strong>Instrucciones:</strong> Puedes imprimir esta hoja en papel para una lectura óptima con el haz láser del lector Symbol, o también puedes apuntar el lector directamente a los códigos mostrados en esta pantalla a una distancia de 10 a 25 cm.
+  </div>
+
+  <div class="grid">
+    {% for prod in sample_products %}
+      <div class="card">
+        <div class="card-title">{{ prod.name }}</div>
+        <div class="card-desc">{{ prod.category }} • Precio: ${{ "%.2f"|format(prod.price) }}</div>
+        <div class="barcode-box">
+          <img src="/api/barcode/{{ prod.format }}/{{ prod.code }}.svg" alt="{{ prod.code }}" />
+        </div>
+        <div class="code-text">{{ prod.code }}</div>
+        <span class="badge">{{ prod.format|upper }}</span>
+      </div>
+    {% endfor %}
+  </div>
+</body>
+</html>

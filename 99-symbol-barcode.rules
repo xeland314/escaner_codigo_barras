@@ -1,0 +1,8 @@
+# Regla udev para lector de código de barras Symbol Technologies (05e0:1200)
+# Permite lectura directa sin necesidad de root a usuarios del grupo input o modo 0666.
+# Copiar este archivo a: /etc/udev/rules.d/99-symbol-barcode.rules
+# Y recargar con:
+#   sudo udevadm control --reload-rules && sudo udevadm trigger
+
+SUBSYSTEM=="input", ATTRS{idVendor}=="05e0", ATTRS{idProduct}=="1200", MODE="0666"
+KERNEL=="hidraw*", ATTRS{idVendor}=="05e0", ATTRS{idProduct}=="1200", MODE="0666"

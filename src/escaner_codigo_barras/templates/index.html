@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Laboratorio Escáner Symbol Technologies (05e0:1200)</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="header-brand">
+        <h1>
+          <span>🏷️</span> Symbol Scanner Lab
+        </h1>
+        <p>Pruebas interactivas y diagnóstico para <strong>Symbol Technologies Bar Code Scanner (05e0:1200)</strong></p>
+      </div>
+      <div class="header-actions">
+        {% if device.connected %}
+          <div class="badge badge-connected" title="Dispositivo USB detectado en el bus del sistema">
+            <span class="pulse-dot"></span>
+            Symbol Conectado ({{ device.device_node }})
+          </div>
+        {% else %}
+          <div class="badge badge-disconnected">
+            <span class="pulse-dot"></span>
+            Escáner Desconectado
+          </div>
+        {% endif %}
+        <div class="badge badge-info" title="Estado de WebSocket en tiempo real">
+          <span class="pulse-dot" id="ws-status-dot"></span>
+          Live Sync
+        </div>
+        <button id="sound-toggle-btn" class="btn btn-success">🔊 Sonido POS: ON</button>
+        <a href="/printable" target="_blank" class="btn btn-secondary">🖨️ Hoja Imprimible</a>
+      </div>
+    </header>
+
+    <!-- Main Live Workbench -->
+    <section class="workbench-panel">
+      <div class="workbench-grid">
+        <!-- Target Box for Scans -->
+        <div class="scan-target-box" id="scan-target-box">
+          <div class="laser-line"></div>
+          <div class="scan-target-content">
+            <span style="font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted);">
+              Apunta el lector aquí o a la pantalla
+            </span>
+            <div class="scan-code-display" id="last-scanned-code">
+              {{ scans[0].code if scans else "LISTO PARA ESCANEAR" }}
+            </div>
+            <div class="scan-meta" id="last-scan-meta">
+              {% if scans %}
+                <span>Hora: <strong>{{ scans[0].timestamp }}</strong></span>
+                <span>Duración: <strong>{{ scans[0].duration_ms }} ms</strong></span>
+                <span>Origen: <strong>{{ scans[0].source }}</strong></span>
+                {% if scans[0].is_scanner %}
+                  <span class="badge badge-connected">Escáner Óptico Hardware</span>
+                {% else %}
+                  <span class="badge badge-info">Teclado Manual</span>
+                {% endif %}
+              {% else %}
+                <span>Presiona el gatillo del escáner Symbol para probar.</span>
+              {% endif %}
+            </div>
+
+            <!-- Matched Product Card -->
+            <div class="scan-product-match" id="last-scan-product" style="{{ 'display:flex;' if scans and scans[0].product else 'display:none;' }}">
+              {% if scans and scans[0].product %}
+                <div>
+                  <div class="product-info-title">{{ scans[0].product.name }}</div>
+                  <div class="product-info-meta">
+                    {{ scans[0].product.category }} • Código: {{ scans[0].product.code }} • Stock: {{ scans[0].product.stock }} un.
+                  </div>
+                  <p style="font-size: 0.8rem; color: #cbd5e1; margin-top: 4px;">{{ scans[0].product.description }}</p>
+                </div>
+                <div>
+                  <div class="product-info-price">${{ "%.2f"|format(scans[0].product.price) }}</div>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar / Manual Simulator -->
+        <div class="workbench-sidebar">
+          <div class="card">
+            <div class="card-title">⌨️ Simulación de Escaneo</div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+              Prueba un código escribiéndolo manualmente o pegándolo si el lector no está a la mano.
+            </p>
+            <div class="input-group">
+              <input type="text" id="manual-code-input" class="input-field" placeholder="Ej. 7501031311309" />
+              <button id="manual-code-btn" class="btn btn-primary">Simular</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-title">ℹ️ Modo de Operación</div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">
+              <strong>USB HID Keyboard Wedge:</strong> El escáner emula un teclado enviando ráfagas a gran velocidad (<50ms) seguidas de Enter. El navegador y el kernel capturan el código automáticamente.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs-nav">
+      <button class="tab-btn active" data-tab="tab-catalog">📚 Códigos de Ejemplo para Probar</button>
+      <button class="tab-btn" data-tab="tab-generator">⚡ Generador Personalizado</button>
+      <button class="tab-btn" data-tab="tab-hardware">🔧 Diagnóstico del Dispositivo USB</button>
+    </nav>
+
+    <!-- Tab 1: Catalog of Sample Barcodes -->
+    <div class="tab-pane active" id="tab-catalog">
+      <!-- Filter Chips -->
+      <div class="filter-bar">
+        <span class="filter-chip active" data-filter="all">Todos</span>
+        <span class="filter-chip" data-filter="ean13">EAN-13 (Supermercado)</span>
+        <span class="filter-chip" data-filter="upca">UPC-A (Retail USA)</span>
+        <span class="filter-chip" data-filter="code128">Code 128 (Logística / Seriales)</span>
+        <span class="filter-chip" data-filter="code39">Code 39 (Industrial)</span>
+        <span class="filter-chip" data-filter="ean8">EAN-8 (Compacto)</span>
+        <span class="filter-chip" data-filter="qrcode">QR Code (2D)</span>
+      </div>
+
+      <!-- Barcode Grid -->
+      <div class="barcode-grid">
+        {% for prod in sample_products %}
+          <div class="barcode-card" data-format="{{ prod.format }}">
+            <div class="barcode-card-header">
+              <div>
+                <div class="barcode-card-title">{{ prod.name }}</div>
+                <div class="barcode-card-category">{{ prod.category }} • {{ prod.description }}</div>
+              </div>
+              <span class="badge badge-info">{{ prod.format|upper }}</span>
+            </div>
+
+            <!-- SVG Container -->
+            <div class="barcode-img-box" onclick="openBarcodeModal('{{ prod.code }}', '{{ prod.format }}', '{{ prod.name }}')" title="Clic para ampliar y escanear en pantalla">
+              <img src="/api/barcode/{{ prod.format }}/{{ prod.code }}.svg" alt="Código {{ prod.code }}" loading="lazy" />
+              <div class="zoom-hint">🔍 Ampliar</div>
+            </div>
+
+            <div class="barcode-card-footer">
+              <div class="barcode-price">${{ "%.2f"|format(prod.price) }}</div>
+              <div class="barcode-card-actions">
+                <button class="btn btn-secondary" onclick="openBarcodeModal('{{ prod.code }}', '{{ prod.format }}', '{{ prod.name }}')">
+                  🔍 Ampliar
+                </button>
+                <button class="btn btn-accent" onclick="sendScanEvent('{{ prod.code }}', 22.0, 'boton_demo')">
+                  ⚡ Simular
+                </button>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Tab 2: Custom Generator -->
+    <div class="tab-pane" id="tab-generator">
+      <div class="card" style="margin-bottom: 2rem;">
+        <h2 style="font-size: 1.25rem; margin-bottom: 1rem; color: #fff;">Generar Código de Barras a Medida</h2>
+        <form id="custom-generator-form" class="generator-form">
+          <div>
+            <div class="form-group">
+              <label class="form-label" for="gen-code-input">Texto o Código a Codificar:</label>
+              <input type="text" id="gen-code-input" class="input-field" placeholder="Ej. LOTE-2026-X99" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="gen-format-select">Simbología / Formato:</label>
+              <select id="gen-format-select" class="form-select">
+                {% for fmt_key, fmt_label in supported_formats.items() %}
+                  <option value="{{ fmt_key }}">{{ fmt_label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+              <button type="submit" class="btn btn-primary">Generar Vista Previa</button>
+              <a id="gen-download-svg" class="btn btn-secondary" style="display: none;" download="barcode.svg">Descargar SVG</a>
+              <a id="gen-download-png" class="btn btn-secondary" style="display: none;" download="barcode.png">Descargar PNG</a>
+            </div>
+          </div>
+          <div>
+            <div class="form-label">Vista Previa para Escaneo:</div>
+            <div id="gen-preview-box" style="background: #0b1120; border: 1px dashed var(--border-color); border-radius: var(--radius-md); padding: 1.5rem; min-height: 180px; display: flex; align-items: center; justify-content: center;">
+              <span style="color: var(--text-muted); font-size: 0.85rem;">Ingresa un texto y pulsa "Generar" para ver el código aquí.</span>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Tab 3: Hardware Diagnostics -->
+    <div class="tab-pane" id="tab-hardware">
+      <h2 style="font-size: 1.25rem; margin-bottom: 1rem; color: #fff;">Información Técnica del Hardware</h2>
+      <div class="info-grid">
+        <div class="info-card">
+          <dt>Dispositivo USB</dt>
+          <dd>{{ device.vendor_id }}:{{ device.product_id }}</dd>
+        </div>
+        <div class="info-card">
+          <dt>Fabricante</dt>
+          <dd>{{ device.vendor_name }}</dd>
+        </div>
+        <div class="info-card">
+          <dt>Modelo</dt>
+          <dd>{{ device.product_name }}</dd>
+        </div>
+        <div class="info-card">
+          <dt>Número de Serie</dt>
+          <dd style="font-size: 0.85rem;">{{ device.serial_number }}</dd>
+        </div>
+        <div class="info-card">
+          <dt>Driver de Kernel</dt>
+          <dd>{{ device.driver }} (Linux Input Subsystem)</dd>
+        </div>
+        <div class="info-card">
+          <dt>Nodo de Entrada</dt>
+          <dd>{{ device.device_node }}</dd>
+        </div>
+        <div class="info-card">
+          <dt>Clase USB HID</dt>
+          <dd>{{ device.interface_class }}</dd>
+        </div>
+        <div class="info-card">
+          <dt>Permisos de Lectura Directa</dt>
+          <dd>{{ "Lectura OK (Acceso evdev activo)" if device.is_readable else "Restringido (Vía Web Wedge)" }}</dd>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 1.5rem; line-height: 1.6;">
+        <h3 style="color: var(--accent-blue); margin-bottom: 0.75rem;">¿Cómo funciona este lector bajo el capó?</h3>
+        <p style="color: #cbd5e1; font-size: 0.95rem; margin-bottom: 0.75rem;">
+          {{ device.explanation }}
+        </p>
+        <p style="color: #94a3b8; font-size: 0.85rem;">
+          💡 <strong>Detección Inteligente de Velocidad:</strong> Cuando una persona escribe en el teclado, el tiempo entre caracteres oscila entre 80ms y 250ms. El escáner Symbol envía ráfagas con intervalos de sólo 5ms a 20ms. La aplicación mide estos tiempos para identificar automáticamente si la entrada provino del escáner láser o de una persona escribiendo.
+        </p>
+      </div>
+    </div>
+
+    <!-- Scan History Table -->
+    <section style="margin-top: 2.5rem;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+        <h2 style="font-size: 1.25rem; font-weight: 700; color: #fff;">Historial de Escaneos de la Sesión</h2>
+        <button id="clear-history-btn" class="btn btn-secondary" style="font-size: 0.8rem; padding: 0.35rem 0.75rem;">
+          🗑️ Limpiar Historial
+        </button>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>Código Decodificado</th>
+              <th>Producto Coincidente</th>
+              <th>Velocidad (ms)</th>
+              <th>Tipo de Entrada</th>
+              <th>Canal / Origen</th>
+            </tr>
+          </thead>
+          <tbody id="history-table-body">
+            {% if scans %}
+              {% for s in scans %}
+                <tr>
+                  <td>{{ s.timestamp }}</td>
+                  <td class="code-cell">{{ s.code }}</td>
+                  <td>{{ s.product.name if s.product else "No en catálogo" }}</td>
+                  <td>{{ s.duration_ms }} ms</td>
+                  <td>
+                    {% if s.is_scanner %}
+                      <span class="badge badge-connected">Escáner Óptico</span>
+                    {% else %}
+                      <span class="badge badge-info">Manual</span>
+                    {% endif %}
+                  </td>
+                  <td><span style="font-size: 0.8rem; color: #94a3b8;">{{ s.source }}</span></td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr id="empty-history-row">
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                  No hay escaneos en esta sesión. Apunta tu lector a un código de barras.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <!-- Zoom Modal -->
+  <div class="modal" id="barcode-modal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeBarcodeModal()">&times;</button>
+      <h3 id="modal-barcode-title" style="color: #fff; margin-bottom: 0.25rem;">Producto</h3>
+      <p id="modal-barcode-code" style="color: var(--accent-blue); font-family: monospace; font-size: 1.1rem; margin-bottom: 1rem;"></p>
+      <div class="modal-barcode-container" id="modal-barcode-svg"></div>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">
+        Apunta el haz del escáner Symbol a la pantalla para leer este código.
+      </p>
+      <div style="margin-top: 1.25rem; display: flex; justify-content: center; gap: 0.5rem;">
+        <button class="btn btn-secondary" onclick="closeBarcodeModal()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
