@@ -123,7 +123,15 @@
         <span class="filter-chip" data-filter="code128">Code 128 (Logística / Seriales)</span>
         <span class="filter-chip" data-filter="code39">Code 39 (Industrial)</span>
         <span class="filter-chip" data-filter="ean8">EAN-8 (Compacto)</span>
-        <span class="filter-chip" data-filter="qrcode">QR Code (2D)</span>
+        <span class="filter-chip" data-filter="qrcode">QR Code (Requiere Imager 2D)</span>
+      </div>
+
+      <!-- Warning callout for 1D vs 2D -->
+      <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 0.85rem 1.2rem; margin-bottom: 1.5rem; font-size: 0.85rem; color: #fde68a; display: flex; align-items: center; gap: 0.75rem;">
+        <span style="font-size: 1.3rem;">ℹ️</span>
+        <div>
+          <strong>¿Tu escáner proyecta una sola línea roja horizontal?</strong> Es un <strong>lector láser 1D (como el clásico Symbol LS2208)</strong>. Los lectores 1D solo leen códigos lineales (EAN, UPC, Code 128, Code 39) y <strong>no pueden leer códigos QR</strong> por limitación física del sensor. Los códigos QR solo son legibles por lectores 2D matriciales (serie DS de Zebra/Symbol).
+        </div>
       </div>
 
       <!-- Barcode Grid -->

@@ -17,7 +17,7 @@ def main():
         help="Modo de ejecución: 'server' (Web Dashboard FastAPI), 'cli' (Terminal stdin), 'evdev' (Hardware listener)",
     )
     parser.add_argument("--host", default="0.0.0.0", help="Dirección host del servidor web (por defecto: 0.0.0.0)")
-    parser.add_argument("--port", type=int, default=8000, help="Puerto del servidor web (por defecto: 8000)")
+    parser.add_argument("--port", type=int, default=8090, help="Puerto del servidor web (por defecto: 8090)")
     parser.add_argument("--reload", action="store_true", help="Habilitar autoreload para desarrollo")
 
     args = parser.parse_args()
